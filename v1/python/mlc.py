@@ -294,8 +294,8 @@ def read_mlc(path: str) -> Dict[str, Any]:
                 data = dict(zip(FUNDAMENTAL_FIELDS, x))
 
                 result["states"].append({
-                    "s": current_step,
-                    "t": current_time,
+                    "s": obj.get("s", current_step),
+                    "t": obj.get("t", current_time),
                     "b": obj["b"],
                     "x": x,
                     "data": data,
@@ -313,8 +313,8 @@ def read_mlc(path: str) -> Dict[str, Any]:
                     raise ValueError(f"Line {line_no}: action length mismatch")
 
                 result["actions"].append({
-                    "s": current_step,
-                    "t": current_time,
+                    "s": obj.get("s", current_step),
+                    "t": obj.get("t", current_time),
                     "a": obj["a"],
                     "b": spec["b"],
                     "x": x,
@@ -333,8 +333,8 @@ def read_mlc(path: str) -> Dict[str, Any]:
                     raise ValueError(f"Line {line_no}: reward length mismatch")
 
                 result["rewards"].append({
-                    "s": current_step,
-                    "t": current_time,
+                    "s": obj.get("s", current_step),
+                    "t": obj.get("t", current_time),
                     "r": obj["r"],
                     "b": spec.get("b"),
                     "x": x,

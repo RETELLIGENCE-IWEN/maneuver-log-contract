@@ -8,7 +8,7 @@ It exists for one mission:
 
 > **We play with moving things. We want to achieve intelligent autonomy.**
 
-This repository hosts the MLC specification, examples, and future reference tools.
+This repository hosts the MLC specification, examples, and Python reference tools.
 
 ---
 
@@ -43,3 +43,39 @@ The current contract is:
 ```text
 Maneuver Log Contract v1
 Recommended extension: .mlc.ndjson
+```
+
+The v1 specification lives at:
+
+```text
+v1/maneuver_log_contract_v1.md
+```
+
+---
+
+## Repository Layout
+
+```text
+.
+|-- README.md
+`-- v1/
+    |-- __init__.py
+    |-- maneuver_log_contract_v1.md
+    |-- python/
+    |   |-- __init__.py
+    |   `-- mlc.py
+    `-- examples/
+        |-- write.py
+        `-- read.py
+```
+
+---
+
+## Python Smoke Test
+
+From the repository root:
+
+```bash
+python v1/examples/write.py
+python v1/examples/read.py
+```

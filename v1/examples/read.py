@@ -1,8 +1,19 @@
-from reference.python.mlc import read_mlc
+from pathlib import Path
+import sys
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from v1.python.mlc import read_mlc
+
+
+EXAMPLE_LOG = Path(__file__).resolve().with_name("example_run.mlc.ndjson")
 
 
 def main() -> None:
-    log = read_mlc("example_run.mlc.ndjson")
+    log = read_mlc(str(EXAMPLE_LOG))
 
     print("Label:", log["header"]["label"])
     print("Bodies:", len(log["bodies"]))

@@ -1,4 +1,15 @@
-from reference.python.mlc import MLCWriter
+from pathlib import Path
+import sys
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from v1.python.mlc import MLCWriter
+
+
+EXAMPLE_LOG = Path(__file__).resolve().with_name("example_run.mlc.ndjson")
 
 
 STATE_0 = [
@@ -28,7 +39,7 @@ STATE_1 = [
 
 def main() -> None:
     with MLCWriter(
-        "example_run.mlc.ndjson",
+        str(EXAMPLE_LOG),
         label="example_run",
         origin_lla=[0.651733, 2.216568, 120.0],
         producer="mlc-python-example",
