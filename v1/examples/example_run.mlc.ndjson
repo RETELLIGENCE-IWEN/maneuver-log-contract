@@ -1,0 +1,14 @@
+{"$":"header","format":1,"label":"example_run","origin_lla":[0.651733,2.216568,120.0],"producer":"mlc-python-example","mode":"simulation","scenario":"minimal_demo","seed":1}
+{"$":"body","id":0,"name":"booster_0","platform":"rocket","model":"generic_vtv_booster"}
+{"$":"action_spec","id":0,"b":0,"fields":["raw_action_0","raw_action_1","raw_action_2","throttle_cmd","tvc_x_cmd","tvc_y_cmd"]}
+{"$":"reward_spec","id":0,"fields":["step_reward","pos_err_reward","vel_err_reward","fuel_penalty","terminal_bonus"],"b":0}
+{"$":"step","s":1,"t":0.0}
+{"$":"event","topic":"phase","data":{"from":"coast","to":"terminal_descent"},"b":0}
+{"b":0,"x":[0.651733,2.216568,970.0,18.2,-6.5,-850.0,-1.2,0.4,72.5,72.4,0.1,1.8,0.9998,0.003,0.019,0.001,0.0061,0.038,0.0021,0.004,-0.018,0.002,0.1,-0.2,-12.8,0.5,0.0,-12.7]}
+{"a":0,"x":[0.12,-0.44,0.91,0.58,0.012,-0.018]}
+{"r":0,"x":[-0.812,-0.215,-0.441,-0.058,0.0]}
+{"$":"step","s":2,"t":0.0016}
+{"b":0,"x":[0.651733,2.216568,969.884,18.198,-6.499,-849.884,-1.202,0.401,72.486,72.38,0.1,1.8,0.9998,0.003,0.019,0.001,0.0061,0.038,0.0021,0.004,-0.018,0.002,0.1,-0.2,-12.8,0.5,0.0,-12.7]}
+{"a":0,"x":[0.1,-0.42,0.88,0.59,0.012,-0.017]}
+{"r":0,"x":[-0.801,-0.214,-0.432,-0.059,0.0]}
+{"$":"event","topic":"terminal","data":{"success":true,"reason":"demo_finished"},"b":0}
