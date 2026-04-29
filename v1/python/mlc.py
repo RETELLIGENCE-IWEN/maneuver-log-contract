@@ -279,31 +279,43 @@ def read_mlc(path: str) -> Dict[str, Any]:
                 result["steps"].append(obj)
 
             elif kind == "event":
-                if current_step is None:
-                    raise ValueError(f"Line {line_no}: event appears before first step")
+                if current_step is None and ("s" not in obj or "t" not in obj):
+                    raise ValueError(
+                        f"Line {line_no}: event appears before first step "
+                        "and does not provide explicit s/t"
+                    )
                 event = dict(obj)
                 event.setdefault("s", current_step)
                 event.setdefault("t", current_time)
                 result["events"].append(event)
 
             elif "b" in obj:
-                if current_step is None:
-                    raise ValueError(f"Line {line_no}: body state appears before first step")
+                if current_step is None and ("s" not in obj or "t" not in obj):
+                    raise ValueError(
+                        f"Line {line_no}: body state appears before first step "
+                        "and does not provide explicit s/t"
+                    )
 
                 x = _as_double_list(obj["x"], len(FUNDAMENTAL_FIELDS), "fundamental_state")
                 data = dict(zip(FUNDAMENTAL_FIELDS, x))
 
+                record_s = obj.get("s", current_step)
+                record_t = obj.get("t", current_time)
+
                 result["states"].append({
-                    "s": obj.get("s", current_step),
-                    "t": obj.get("t", current_time),
+                    "s": record_s,
+                    "t": record_t,
                     "b": obj["b"],
                     "x": x,
                     "data": data,
                 })
 
             elif "a" in obj:
-                if current_step is None:
-                    raise ValueError(f"Line {line_no}: action appears before first step")
+                if current_step is None and ("s" not in obj or "t" not in obj):
+                    raise ValueError(
+                        f"Line {line_no}: action appears before first step "
+                        "and does not provide explicit s/t"
+                    )
 
                 spec = result["action_specs"][obj["a"]]
                 fields = spec["fields"]
@@ -312,9 +324,12 @@ def read_mlc(path: str) -> Dict[str, Any]:
                 if len(x) != len(fields):
                     raise ValueError(f"Line {line_no}: action length mismatch")
 
+                record_s = obj.get("s", current_step)
+                record_t = obj.get("t", current_time)
+
                 result["actions"].append({
-                    "s": obj.get("s", current_step),
-                    "t": obj.get("t", current_time),
+                    "s": record_s,
+                    "t": record_t,
                     "a": obj["a"],
                     "b": spec["b"],
                     "x": x,
@@ -322,8 +337,11 @@ def read_mlc(path: str) -> Dict[str, Any]:
                 })
 
             elif "r" in obj:
-                if current_step is None:
-                    raise ValueError(f"Line {line_no}: reward appears before first step")
+                if current_step is None and ("s" not in obj or "t" not in obj):
+                    raise ValueError(
+                        f"Line {line_no}: reward appears before first step "
+                        "and does not provide explicit s/t"
+                    )
 
                 spec = result["reward_specs"][obj["r"]]
                 fields = spec["fields"]
@@ -332,9 +350,12 @@ def read_mlc(path: str) -> Dict[str, Any]:
                 if len(x) != len(fields):
                     raise ValueError(f"Line {line_no}: reward length mismatch")
 
+                record_s = obj.get("s", current_step)
+                record_t = obj.get("t", current_time)
+
                 result["rewards"].append({
-                    "s": obj.get("s", current_step),
-                    "t": obj.get("t", current_time),
+                    "s": record_s,
+                    "t": record_t,
                     "r": obj["r"],
                     "b": spec.get("b"),
                     "x": x,
