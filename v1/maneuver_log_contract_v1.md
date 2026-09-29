@@ -621,3 +621,50 @@ The core promise is simple:
 
 > If a tool understands MLC v1, it can reconstruct and visualize the maneuver of every logged body from the fixed fundamental state.
 
+---
+
+## Appendix A. Topic Convention: `target` Gate Geometry
+
+This appendix is a usage convention inside MLC v1. It does not change any record type or the fundamental state, and it does not change `format`. Readers that do not know these fields keep working.
+
+A fly-through gate is logged as:
+
+1. a `body` record with `"role":"target"` (and `"platform":"other"` for a static gate), with a state sample every step (static pose), and
+2. one `event` with `"topic":"target"` whose `data` carries the geometry the body record cannot.
+
+### A.1 Form
+
+```json
+{"$":"event","b":0,"topic":"target","data":{"name":"gate_center","position_ned":[20.0,0.0,-30.0],"lla":[3.1568e-06,0.0,30.0],"yaw_rad":3.141592653589793,"gate_body":1,"aperture_m":[2.0,2.0],"aperture_uv_m":[[-1.0,-1.0],[1.0,-1.0],[1.0,1.0],[-1.0,1.0]],"frame_thickness_m":0.1}}
+```
+
+### A.2 `data` Fields
+
+| Field | Required | Meaning |
+|---|---:|---|
+| `name` | recommended | readable name of the target point |
+| `position_ned` | recommended | gate center in NED meters (same as the gate body state) |
+| `lla` | optional | gate center as `[lat_rad, lon_rad, alt_m]` |
+| `yaw_rad` | optional | gate yaw, informative only (the gate body quaternion is authoritative) |
+| `gate_body` | recommended | body ID of the gate this geometry belongs to |
+| `aperture_uv_m` | recommended | closed opening outline `[[u, v], ...]` in meters, at least 3 vertices |
+| `frame_thickness_m` | optional | frame bar thickness in meters |
+| `aperture_m` | recommended | `[width, height]` bounding box of the outline, for readers without `aperture_uv_m` |
+
+The event `b` keeps its Section 12 meaning (the related body, usually the primary vehicle). The gate is identified by `gate_body`.
+
+### A.3 Outline Convention
+
+```text
+Frame:     gate body frame (FRD, Section 3.3), origin at the gate body position
+u:         along body y (right)
+v:         along body z (down)
+Opening:   the body y-z plane; the passage axis is body x
+Vertices:  one closed loop, last vertex joins the first, no self-intersection
+Winding:   either direction
+Shape:     convex or concave; curves are sampled as polygons (e.g. 48 vertices for a circle)
+```
+
+The outline is the opening the pass check uses. The frame lies outside it, `frame_thickness_m` wide.
+
+When `aperture_uv_m` is absent, readers use the rectangle `aperture_m` centered on the gate body.
