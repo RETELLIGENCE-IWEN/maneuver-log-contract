@@ -647,7 +647,7 @@ A fly-through gate is logged as:
 | `lla` | optional | gate center as `[lat_rad, lon_rad, alt_m]` |
 | `yaw_rad` | optional | gate yaw, informative only (the gate body quaternion is authoritative) |
 | `gate_body` | recommended | body ID of the gate this geometry belongs to |
-| `aperture_uv_m` | recommended | closed opening outline `[[u, v], ...]` in meters, at least 3 vertices |
+| `aperture_uv_m` | recommended | closed opening outline `[[u, v], ...]` or `[[u, v, w], ...]` in meters, at least 3 vertices |
 | `frame_thickness_m` | optional | frame bar thickness in meters |
 | `aperture_m` | recommended | `[width, height]` bounding box of the outline, for readers without `aperture_uv_m` |
 
@@ -659,6 +659,7 @@ The event `b` keeps its Section 12 meaning (the related body, usually the primar
 Frame:     gate body frame (FRD, Section 3.3), origin at the gate body position
 u:         along body y (right)
 v:         along body z (down)
+w:         optional third value, along body x (the passage axis); missing = 0
 Opening:   the body y-z plane; the passage axis is body x
 Vertices:  one closed loop, last vertex joins the first, no self-intersection
 Winding:   either direction
@@ -668,3 +669,20 @@ Shape:     convex or concave; curves are sampled as polygons (e.g. 48 vertices f
 The outline is the opening the pass check uses. The frame lies outside it, `frame_thickness_m` wide.
 
 When `aperture_uv_m` is absent, readers use the rectangle `aperture_m` centered on the gate body.
+
+### A.4 Non-Flat (Twisted) Gates
+
+A vertex may carry a third value `w`, which moves it along body x. With `w` the outline is a closed loop in 3D, for example a square whose corners are pushed alternately forward and back:
+
+```json
+"aperture_uv_m":[[-1.0,-1.0,0.5],[1.0,-1.0,-0.5],[1.0,1.0,0.5],[-1.0,1.0,-0.5]]
+```
+
+```text
+Projection: the (u, v) loop, seen along body x, must still be a simple closed polygon
+Mixing:     vertices without w use w = 0
+Readers:    a reader that ignores w shows the flat projection; this stays valid MLC v1
+aperture_m: still the (u, v) bounding box
+```
+
+`w` describes the frame shape only. How a pass through a non-flat opening is judged is up to the producer and is not defined here.
