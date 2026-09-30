@@ -37,6 +37,62 @@ def _as_double_list(values: List[Any], expected_len: int, name: str) -> List[flo
     return out
 
 
+# ---- LLA <-> NED (Section 3.2): exact WGS84 conversion through ECEF, radians ----
+
+WGS84_A_M = 6378137.0
+WGS84_F = 1.0 / 298.257223563
+WGS84_E2 = WGS84_F * (2.0 - WGS84_F)
+
+
+def _lla_to_ecef(lla: List[float]) -> List[float]:
+    lat, lon, alt = (float(v) for v in lla)
+    s = math.sin(lat)
+    n = WGS84_A_M / math.sqrt(1.0 - WGS84_E2 * s * s)
+    return [(n + alt) * math.cos(lat) * math.cos(lon),
+            (n + alt) * math.cos(lat) * math.sin(lon),
+            (n * (1.0 - WGS84_E2) + alt) * s]
+
+
+def _ecef_to_lla(ecef: List[float]) -> List[float]:
+    x, y, z = (float(v) for v in ecef)
+    lon = math.atan2(y, x)
+    horizontal = math.hypot(x, y)
+    lat = math.atan2(z, horizontal * (1.0 - WGS84_E2))
+    for _ in range(8):
+        s = math.sin(lat)
+        n = WGS84_A_M / math.sqrt(1.0 - WGS84_E2 * s * s)
+        alt = horizontal / math.cos(lat) - n
+        lat = math.atan2(z, horizontal * (1.0 - WGS84_E2 * n / (n + alt)))
+    s = math.sin(lat)
+    n = WGS84_A_M / math.sqrt(1.0 - WGS84_E2 * s * s)
+    return [lat, lon, horizontal / math.cos(lat) - n]
+
+
+def _ned_axes(origin_lla: List[float]) -> List[List[float]]:
+    """Rows: north, east, down unit vectors at the origin, in ECEF."""
+    lat0, lon0 = float(origin_lla[0]), float(origin_lla[1])
+    sl, cl, so, co = math.sin(lat0), math.cos(lat0), math.sin(lon0), math.cos(lon0)
+    return [[-sl * co, -sl * so, cl], [-so, co, 0.0], [-cl * co, -cl * so, -sl]]
+
+
+def ned_to_lla(origin_lla: List[float], ned: List[float]) -> List[float]:
+    """[n, e, d] metres from origin_lla -> [lat_rad, lon_rad, alt_m] (WGS84 ellipsoid height)."""
+    o = _as_double_list(list(origin_lla), 3, "origin_lla")
+    v = _as_double_list(list(ned), 3, "ned")
+    axes = _ned_axes(o)
+    base = _lla_to_ecef(o)
+    return _ecef_to_lla([base[k] + sum(axes[i][k] * v[i] for i in range(3)) for k in range(3)])
+
+
+def lla_to_ned(origin_lla: List[float], lla: List[float]) -> List[float]:
+    """[lat_rad, lon_rad, alt_m] -> [n, e, d] metres from origin_lla."""
+    o = _as_double_list(list(origin_lla), 3, "origin_lla")
+    p = _as_double_list(list(lla), 3, "lla")
+    axes = _ned_axes(o)
+    d = [a - b for a, b in zip(_lla_to_ecef(p), _lla_to_ecef(o))]
+    return [sum(axes[i][k] * d[k] for k in range(3)) for i in range(3)]
+
+
 class MLCWriter:
     def __init__(
         self,
@@ -48,7 +104,31 @@ class MLCWriter:
         mode: Optional[str] = None,
         scenario: Optional[str] = None,
         seed: Optional[int] = None,
+        created_utc: Optional[str] = None,
+        meta: Optional[Dict[str, Any]] = None,
     ) -> None:
+        # Build and check the header before the file exists: a bad argument leaves no empty file behind.
+        header: Dict[str, Any] = {
+            "$": "header",
+            "format": 1,
+            "label": label,
+            "origin_lla": _as_double_list(origin_lla, 3, "origin_lla"),
+        }
+
+        if created_utc is not None:
+            header["created_utc"] = created_utc
+        if producer is not None:
+            header["producer"] = producer
+        if mode is not None:
+            header["mode"] = mode
+        if scenario is not None:
+            header["scenario"] = scenario
+        if seed is not None:
+            header["seed"] = seed
+        if meta is not None:
+            header["meta"] = dict(meta)
+        _dump_line(header)   # raises on values JSON cannot hold (NaN, objects), before the file is opened
+
         self.path = Path(path)
         self.f = self.path.open("w", encoding="utf-8", newline="\n")
 
@@ -63,22 +143,6 @@ class MLCWriter:
 
         self.current_step: Optional[int] = None
         self.current_time: Optional[float] = None
-
-        header: Dict[str, Any] = {
-            "$": "header",
-            "format": 1,
-            "label": label,
-            "origin_lla": _as_double_list(origin_lla, 3, "origin_lla"),
-        }
-
-        if producer is not None:
-            header["producer"] = producer
-        if mode is not None:
-            header["mode"] = mode
-        if scenario is not None:
-            header["scenario"] = scenario
-        if seed is not None:
-            header["seed"] = seed
 
         self._write(header)
 
@@ -101,6 +165,7 @@ class MLCWriter:
         platform: Optional[str] = None,
         model: Optional[str] = None,
         role: Optional[str] = None,
+        meta: Optional[Dict[str, Any]] = None,
     ) -> int:
         body_id = self.next_body_id
         self.next_body_id += 1
@@ -117,6 +182,8 @@ class MLCWriter:
             obj["model"] = model
         if role is not None:
             obj["role"] = role
+        if meta is not None:
+            obj["meta"] = dict(meta)
 
         self.bodies[body_id] = obj
         self._write(obj)

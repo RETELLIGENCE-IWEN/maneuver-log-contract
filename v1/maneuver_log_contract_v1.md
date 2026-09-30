@@ -107,6 +107,20 @@ The log header must define the local NED origin using LLA:
 "origin_lla": [lat_rad, lon_rad, alt_m]
 ```
 
+The LLA and the NED position of a state sample are the same point:
+
+```text
+NED frame:  the local tangent frame at origin_lla on the WGS84 ellipsoid (north, east, down at the origin)
+Altitude:   height above the WGS84 ellipsoid (not MSL)
+Conversion: exact, through ECEF - not a flat-earth or spherical approximation
+            ECEF = ecef(origin_lla) + R_ned_to_ecef(origin_lla) * [n, e, d],  LLA = lla(ECEF)
+Reference:  mlc.ned_to_lla(origin_lla, ned) and mlc.lla_to_ned(origin_lla, lla) in v1/python/mlc.py
+Source:     whichever the simulator computes natively; convert the other with the functions above
+Tolerance:  LLA and NED should agree within 0.01 m; validators may check it
+```
+
+A flat-earth conversion (`lat0 + n/R`, `alt0 - d`) drifts from this by metres a few kilometres from the origin (about d^2 / 2R in altitude: 5.7 m at 8.5 km). Readers that draw with the NED position are not affected, but tools that cross-check LLA and NED are.
+
 ### 3.3 Body Frame
 
 MLC v1 uses the aerospace body frame:
@@ -351,6 +365,16 @@ A valid fundamental state sample must contain exactly 28 double-precision values
 A body state sample must include every fundamental field.
 
 A visualizer must use the fundamental maneuver state as the guaranteed source of body motion.
+
+### 9.4 Acceleration
+
+```text
+an, ae, ad:          kinematic acceleration of the body origin in NED: the second time derivative of the NED
+                     position. Gravity is not removed: a body at rest has 0, a body in free fall has ad = +9.81.
+ax, ay, az (body):   the same vector in body axes: a_body = R^T * a_ned, R = body_to_ned (the quaternion)
+```
+
+It is not `d(uvw)/dt` (that differs by `omega x v` while the body rotates) and not the specific force an accelerometer reads (that differs by gravity).
 
 ---
 
@@ -695,7 +719,7 @@ This appendix is a usage convention inside MLC v1. It does not change any record
 
 A body that carries a camera (optionally on a gimbal) logs:
 
-1. one `event` with `"topic":"camera"` before the first step: the camera and its mounting, and
+1. one `event` with `"topic":"camera"` in the first step: the camera and its mounting, and
 2. one `event` with `"topic":"gimbal"` per step (or whenever the angles change): where the camera actually points.
 
 Both events use `b` = the body the camera is mounted on.
@@ -726,10 +750,11 @@ Both events use `b` = the body the camera is mounted on.
 |---|---:|---|
 | `pitch_rad` | when not 0 | camera tilt, radians: rotation about body y, `+` = camera up, `0` = along the body nose (x) |
 | `yaw_rad` | when not 0 | camera pan, radians: rotation about body z, `+` = camera right, `0` = along the body nose (x) |
+| `roll_rad` | optional | camera roll about its own optical axis, radians, applied last: `+` = the camera's right side down (right-handed about the optical axis, like aircraft roll), `0` = image up is body up |
 
 ```text
-Order:     yaw (pan) first, then pitch (tilt) about the panned axis - a pan-tilt gimbal
-Rest:      yaw 0, pitch 0 = the camera looks along body x (nose)
+Order:     yaw (pan) first, then pitch (tilt) about the panned axis, then roll about the optical axis
+Rest:      yaw 0, pitch 0, roll 0 = the camera looks along body x (nose), image up = body up
 Whole:     one event is the whole gimbal state; an axis it leaves out is 0
 Holding:   the angles hold until the next gimbal event of the same body
 Values:    the direction the camera's optical axis actually has relative to the body, INCLUDING any fixed
@@ -737,7 +762,7 @@ Values:    the direction the camera's optical axis actually has relative to the 
 Range:     any angle; producers should send (-pi, pi]
 ```
 
-The angles are the camera direction, not only the gimbal travel: a camera mounted 25 deg up on a gimbal at 0 logs `pitch_rad` 0.436. There is no separate mounting rotation field. A pitch-only gimbal sends `pitch_rad` only. A fixed camera (`"gimbal":"none"`) along the body nose sends no `gimbal` events; a fixed camera mounted at an angle sends one `gimbal` event (before or in the first step) with that angle, for example an FPV camera tilted 25 deg up:
+The angles are the camera direction, not only the gimbal travel: a camera mounted 25 deg up on a gimbal at 0 logs `pitch_rad` 0.436. There is no separate mounting rotation field; a mounting misalignment about the optical axis goes into `roll_rad`. `roll_rad` does not change where the camera points, only how its image is turned; readers that ignore it still get the direction right. A pitch-only gimbal sends `pitch_rad` only. A fixed camera (`"gimbal":"none"`) along the body nose sends no `gimbal` events; a fixed camera mounted at an angle sends one `gimbal` event (in the first step) with that angle, for example an FPV camera tilted 25 deg up:
 
 ```json
 {"$":"event","b":0,"topic":"camera","data":{"hfov_rad":2.094395,"mount_offset_frd_m":[0.08,0.0,-0.02],"gimbal":"none"}}
@@ -746,7 +771,7 @@ The angles are the camera direction, not only the gimbal travel: a camera mounte
 
 ### B.4 Placement
 
-Write the `camera` event after the body records, before the first `step` or inside the first step. Write a `gimbal` event inside the step it belongs to, after the body's state sample. The viewer applies a `gimbal` event to the state of the same step whether it comes before or after the state sample.
+Write the `camera` event inside the first step, after that step's state samples. An event before the first `step` has no time context: `read_mlc` rejects it unless it carries an explicit `s` and `t`, and `MLCWriter.event` needs an active step. Write a `gimbal` event inside the step it belongs to, after the body's state sample. The viewer applies a `gimbal` event to the state of the same step whether it comes before or after the state sample.
 
 ---
 
@@ -782,8 +807,8 @@ New names:  add them to this table before producers start using them
 | `mbqd_xp23` | XP23 quadcopter (same airframe as XP26, older simulator engine) | 21 |
 | `mbqd_xp26` | XP26 quadcopter | 21 |
 | `gpq_ng` | GP-N/G quadcopter (gate-pass environment) | 22 |
-| `gpq_xp` | GP-X prototype quadcopter | 23 |
-| `gpq_x` | GP-X quadcopter (gimballed camera) | 24 |
+| `gpq_xp` | GP-X prototype quadcopter (`gpq_ng` with a 1-axis pitch gimbal) | 23 |
+| `gpq_x` | GP-X quadcopter (production airframe, gimballed camera) | 24 |
 | `gbu-39` | GBU-39 glide bomb | - |
 
 The `vehicle_type_id` column links the name to the live telemetry ID of the same airframe, so a replay and a live session show the same model.
@@ -848,3 +873,31 @@ A glide bomb released by body 0 in step 201 hits the ground in step 581:
 ```
 
 Body 2 has no state sample before step 201 or after step 581.
+
+---
+
+## Appendix E. Static Shapes: `landing_pad`, `net`, `sphere`
+
+This appendix is a usage convention inside MLC v1. It does not change any record type or `format`. Readers that do not know these topics draw the bodies with a generic shape.
+
+A shape belongs to a body: `platform` `"other"`, no `model`, a state sample in every step (Appendix D). The body's state places and turns the shape; a moving shape (a pad on a moving vehicle) is a moving body. One event per shape, in the first step after the state samples, with `b` = the shape's body, carries the size. (A fly-through gate stays Appendix A.)
+
+### E.1 Form
+
+```json
+{"$":"event","b":1,"topic":"landing_pad","data":{"pad_body":1,"length_m":1.5,"width_m":1.5}}
+{"$":"event","b":2,"topic":"net","data":{"net_body":2,"width_m":2.0,"height_m":2.0,"valid_width_m":1.8,"valid_height_m":1.8}}
+{"$":"event","b":3,"topic":"sphere","data":{"sphere_body":3,"radius_m":0.5}}
+```
+
+### E.2 Shapes
+
+| Topic | Shape (body frame, FRD, centred on the body origin) | `data` fields |
+|---|---|---|
+| `landing_pad` | horizontal rectangle in the body x-y plane; the landing surface is at the body origin | `pad_body` (yes), `length_m` along body x (yes), `width_m` along body y (yes) |
+| `net` | rectangle in the body y-z plane, like a gate (Appendix A); body x is its normal, pointing toward where the approach comes from | `net_body` (yes), `width_m` along body y (yes), `height_m` along body z (yes), `valid_width_m` / `valid_height_m` (optional): the centred inner area that counts as a hit |
+| `sphere` | sphere | `sphere_body` (yes), `radius_m` (yes) |
+
+The `*_body` field repeats the event's `b` so the geometry stays tied to its body even if a tool drops `b`.
+
+Suggested roles: `"target"` for a pad or a net, `"obstacle"` for a sphere that must be avoided. Events about the shape during the episode (a hit, a contact) stay producer-defined, for example `net_hit` or `sphere_contact` with the shape's body in their data.
