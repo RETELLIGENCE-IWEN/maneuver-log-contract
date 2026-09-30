@@ -718,6 +718,7 @@ New names:  add them to this table before producers start using them
 | `vtol` | DALE VTOL (Neptune V370) | 16 |
 | `lah` | DALE LAH | 17 |
 | `basic_quad` | generic quadcopter | - |
+| `mbqd_xp23` | XP23 quadcopter (same airframe as XP26, older simulator engine) | - |
 | `mbqd_xp26` | XP26 quadcopter | - |
 | `gbu-39` | GBU-39 glide bomb | - |
 
