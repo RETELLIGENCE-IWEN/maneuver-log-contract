@@ -746,7 +746,7 @@ The angles are the camera direction, not only the gimbal travel: a camera mounte
 
 ### B.4 Placement
 
-Write the `camera` event after the body records and before the first `step`. Write a `gimbal` event inside the step it belongs to, after the body's state sample. The viewer applies a `gimbal` event to the state of the same step whether it comes before or after the state sample.
+Write the `camera` event after the body records, before the first `step` or inside the first step. Write a `gimbal` event inside the step it belongs to, after the body's state sample. The viewer applies a `gimbal` event to the state of the same step whether it comes before or after the state sample.
 
 ---
 
@@ -793,3 +793,55 @@ The `vehicle_type_id` column links the name to the live telemetry ID of the same
 {"$":"body","id":0,"name":"ownship","platform":"fixed_wing","model":"coyote","role":"ownship"}
 {"$":"body","id":1,"name":"quad_0","platform":"quadcopter","model":"basic_quad"}
 ```
+
+---
+
+## Appendix D. Body Lifetime
+
+This appendix is a convention inside MLC v1. It does not change any record type and does not change `format`. It covers bodies that do not exist for the whole episode, for example a released munition, a launched vehicle or a destroyed target.
+
+### D.1 Rules
+
+```text
+Declare:   every body record at the top of the log, as usual (Section 16, rule 2), even a body that appears later
+Alive:     a body exists from its first state sample to its last state sample
+While alive: one state sample in every step (no gaps)
+Outside:   before its first and after its last state sample the body does not exist; readers do not draw it
+Static:    a body that exists for the whole episode (a gate, a parked vehicle) has a state sample in every step
+```
+
+A reader that does not know this appendix still reads the log: it only sees steps without a sample for that body.
+
+### D.2 `spawn` and `despawn` Events (recommended)
+
+The state samples alone define the lifetime. The events say why, for plots and timelines:
+
+| Topic | Step | `b` | `data` |
+|---|---|---|---|
+| `spawn` | the body's first state sample | the new body | `parent_body` (recommended): the body that released or launched it |
+| `despawn` | the body's last state sample | the body that ends | `reason` (recommended): for example `"impact"`, `"destroyed"`, `"out_of_range"`, `"landed"` |
+
+Other fields are free (for example the impact point, or the body it hit in `hit_body`).
+
+### D.3 Example
+
+A glide bomb released by body 0 in step 201 hits the ground in step 581:
+
+```json
+{"$":"body","id":0,"name":"lead","platform":"fixed_wing","model":"kf21","role":"ownship"}
+{"$":"body","id":2,"name":"bomb_0","platform":"munition","model":"gbu-39","role":"weapon"}
+...
+{"$":"step","s":201,"t":10.0}
+{"b":0,"x":[...]}
+{"b":2,"x":[...]}
+{"$":"event","b":2,"topic":"spawn","data":{"parent_body":0}}
+...
+{"$":"step","s":581,"t":29.0}
+{"b":0,"x":[...]}
+{"b":2,"x":[...]}
+{"$":"event","b":2,"topic":"despawn","data":{"reason":"impact","hit_body":1}}
+{"$":"step","s":582,"t":29.05}
+{"b":0,"x":[...]}
+```
+
+Body 2 has no state sample before step 201 or after step 581.
