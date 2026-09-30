@@ -696,14 +696,14 @@ This appendix is a usage convention inside MLC v1. It does not change any record
 A body that carries a camera (optionally on a gimbal) logs:
 
 1. one `event` with `"topic":"camera"` before the first step: the camera and its mounting, and
-2. one `event` with `"topic":"gimbal"` per step (or whenever the angles change): the actual gimbal angles.
+2. one `event` with `"topic":"gimbal"` per step (or whenever the angles change): where the camera actually points.
 
 Both events use `b` = the body the camera is mounted on.
 
 ### B.1 Form
 
 ```json
-{"$":"event","b":0,"topic":"camera","data":{"name":"d435","hfov_rad":1.211259,"vfov_rad":0.742833,"image_px":[1280,720],"mount_offset_frd_m":[0.15,-0.03,0.01],"mount_rpy_rad":[0.0,0.0,0.0],"gimbal":"yaw_pitch","gimbal_limits_rad":[-1.047198,1.047198],"gimbal_yaw_limits_rad":[-1.570796,1.570796]}}
+{"$":"event","b":0,"topic":"camera","data":{"name":"d435","hfov_rad":1.211259,"vfov_rad":0.742833,"image_px":[1280,720],"mount_offset_frd_m":[0.15,-0.03,0.01],"gimbal":"yaw_pitch","gimbal_limits_rad":[-1.047198,1.047198],"gimbal_yaw_limits_rad":[-1.570796,1.570796]}}
 {"$":"event","b":0,"topic":"gimbal","data":{"pitch_rad":-0.466263,"yaw_rad":0.001511}}
 ```
 
@@ -716,7 +716,6 @@ Both events use `b` = the body the camera is mounted on.
 | `vfov_rad` | recommended | vertical field of view, radians (readers may assume 16:9 from `hfov_rad` without it) |
 | `image_px` | optional | `[width, height]` in pixels |
 | `mount_offset_frd_m` | recommended | gimbal pivot (or fixed camera) position in the body frame (FRD, Section 3.3), meters |
-| `mount_rpy_rad` | optional | fixed camera rotation after the gimbal, `[roll, pitch, yaw]` FRD radians, default zeros |
 | `gimbal` | recommended | gimbal axes: `"none"` (fixed camera), `"pitch"` (tilt only), `"yaw_pitch"` (pan-tilt) |
 | `gimbal_limits_rad` | optional | `[min, max]` pitch travel, radians |
 | `gimbal_yaw_limits_rad` | optional | `[min, max]` yaw travel, radians |
@@ -725,19 +724,25 @@ Both events use `b` = the body the camera is mounted on.
 
 | Field | Required | Meaning |
 |---|---:|---|
-| `pitch_rad` | when the gimbal has pitch | actual tilt, radians: rotation about body y, `+` = camera up, `0` = along the body nose (x) |
-| `yaw_rad` | when the gimbal has yaw | actual pan, radians: rotation about body z, `+` = camera right, `0` = along the body nose (x) |
+| `pitch_rad` | when not 0 | camera tilt, radians: rotation about body y, `+` = camera up, `0` = along the body nose (x) |
+| `yaw_rad` | when not 0 | camera pan, radians: rotation about body z, `+` = camera right, `0` = along the body nose (x) |
 
 ```text
 Order:     yaw (pan) first, then pitch (tilt) about the panned axis - a pan-tilt gimbal
 Rest:      yaw 0, pitch 0 = the camera looks along body x (nose)
 Whole:     one event is the whole gimbal state; an axis it leaves out is 0
 Holding:   the angles hold until the next gimbal event of the same body
-Values:    the angles the gimbal actually has (not the commanded ones); command values belong in actions
+Values:    the direction the camera's optical axis actually has relative to the body, INCLUDING any fixed
+           mounting tilt of the camera (not the commanded angles; commands belong in actions)
 Range:     any angle; producers should send (-pi, pi]
 ```
 
-A pitch-only gimbal sends `pitch_rad` only; a fixed camera (`"gimbal":"none"`) sends no `gimbal` events.
+The angles are the camera direction, not only the gimbal travel: a camera mounted 25 deg up on a gimbal at 0 logs `pitch_rad` 0.436. There is no separate mounting rotation field. A pitch-only gimbal sends `pitch_rad` only. A fixed camera (`"gimbal":"none"`) along the body nose sends no `gimbal` events; a fixed camera mounted at an angle sends one `gimbal` event (before or in the first step) with that angle, for example an FPV camera tilted 25 deg up:
+
+```json
+{"$":"event","b":0,"topic":"camera","data":{"hfov_rad":2.094395,"mount_offset_frd_m":[0.08,0.0,-0.02],"gimbal":"none"}}
+{"$":"event","b":0,"topic":"gimbal","data":{"pitch_rad":0.436332}}
+```
 
 ### B.4 Placement
 
