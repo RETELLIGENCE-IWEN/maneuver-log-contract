@@ -781,6 +781,9 @@ New names:  add them to this table before producers start using them
 | `basic_quad` | generic quadcopter | 20 |
 | `mbqd_xp23` | XP23 quadcopter (same airframe as XP26, older simulator engine) | 21 |
 | `mbqd_xp26` | XP26 quadcopter | 21 |
+| `gpq_ng` | GP-N/G quadcopter (gate-pass environment) | 22 |
+| `gpq_xp` | GP-X prototype quadcopter | 23 |
+| `gpq_x` | GP-X quadcopter (gimballed camera) | 24 |
 | `gbu-39` | GBU-39 glide bomb | - |
 
 The `vehicle_type_id` column links the name to the live telemetry ID of the same airframe, so a replay and a live session show the same model.
