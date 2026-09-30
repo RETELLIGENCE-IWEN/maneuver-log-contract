@@ -773,9 +773,9 @@ New names:  add them to this table before producers start using them
 | `kf21` | DALE KF-21 | 15 |
 | `vtol` | DALE VTOL (Neptune V370) | 16 |
 | `lah` | DALE LAH | 17 |
-| `basic_quad` | generic quadcopter | - |
-| `mbqd_xp23` | XP23 quadcopter (same airframe as XP26, older simulator engine) | - |
-| `mbqd_xp26` | XP26 quadcopter | - |
+| `basic_quad` | generic quadcopter | 20 |
+| `mbqd_xp23` | XP23 quadcopter (same airframe as XP26, older simulator engine) | 21 |
+| `mbqd_xp26` | XP26 quadcopter | 21 |
 | `gbu-39` | GBU-39 glide bomb | - |
 
 The `vehicle_type_id` column links the name to the live telemetry ID of the same airframe, so a replay and a live session show the same model.
