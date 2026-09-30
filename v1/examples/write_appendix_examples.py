@@ -35,11 +35,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from v1.python.mlc import MLCWriter
+from v1.python.mlc import MLCWriter, ned_to_lla
 
 HERE = Path(__file__).resolve().parent
 G = 9.80665
-EARTH_R = 6378137.0
 ORIGIN_LLA = [math.radians(36.5), math.radians(127.5), 100.0]   # lat_rad, lon_rad, alt_m
 
 
@@ -69,8 +68,7 @@ def ned_to_body(m, v):
 
 
 def lla_from_ned(n, e, d):
-    lat0, lon0, alt0 = ORIGIN_LLA
-    return [lat0 + n / EARTH_R, lon0 + e / (EARTH_R * math.cos(lat0)), alt0 - d]
+    return ned_to_lla(ORIGIN_LLA, [n, e, d])   # Section 3.2: exact WGS84 through ECEF
 
 
 def state_vector(pos, vel, acc, att, att_rate):
@@ -168,8 +166,8 @@ def write_quad_gate_camera():
             a0, a1 = att_at(t - h), att_at(t + h)
             att_rate = [wrap(b - a) / (2 * h) for a, b in zip(a0, a1)]
             quad_x = state_vector(pos, vel, acc, att, att_rate)
-            log.state(quad, rounded(quad_x))
-            log.state(gate, rounded(state_vector(gate_ned, (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0))))
+            log.state(quad, list(quad_x))
+            log.state(gate, list(state_vector(gate_ned, (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0))))
 
             if i == 0:
                 # Appendix B: the camera, once. Appendix A: the gate geometry, once.
@@ -255,8 +253,8 @@ def write_fixedwing_fixed_camera():
             pos, vel, acc = sample(traj, t)
             att = attitude(vel)
             x = state_vector(pos, vel, acc, att, (0.0, 0.0, omega))
-            log.state(uav, rounded(x))
-            log.state(wp, rounded(state_vector((center[0], center[1], 0.0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0))))
+            log.state(uav, list(x))
+            log.state(wp, list(state_vector((center[0], center[1], 0.0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0))))
             if i == 0:
                 # Appendix B: a fixed camera ("gimbal":"none") mounted at an angle sends that angle once
                 log.event("camera", {
@@ -324,8 +322,8 @@ def write_quad_round_gate_miss():
             a0, a1 = att_at(t - h), att_at(t + h)
             att_rate = [wrap(b - a) / (2 * h) for a, b in zip(a0, a1)]
             quad_x = state_vector(pos, vel, acc, att, att_rate)
-            log.state(quad, rounded(quad_x))
-            log.state(gate, rounded(state_vector(gate_ned, (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0))))
+            log.state(quad, list(quad_x))
+            log.state(gate, list(state_vector(gate_ned, (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0))))
 
             if i == 0:
                 # Appendix B: a tilt-only gimbal. Appendix A: a round gate (a flat 32-point outline).
@@ -423,9 +421,9 @@ def write_suca_track_vehicle():
             a0, a1 = attitude(t - h), attitude(t + h)
             att_rate = [wrap(b - a) / (2 * h) for a, b in zip(a0, a1)]
             x = state_vector(pos, vel, acc, att, att_rate)
-            log.state(uav, rounded(x))
+            log.state(uav, list(x))
             cpos, cvel, cacc = sample(car, t)
-            log.state(veh, rounded(state_vector(cpos, cvel, cacc, (0.0, 0.0, math.pi / 2), (0, 0, 0))))
+            log.state(veh, list(state_vector(cpos, cvel, cacc, (0.0, 0.0, math.pi / 2), (0, 0, 0))))
 
             if i == 0:
                 # Appendix B: a pan-tilt gimbal under the belly
@@ -530,9 +528,9 @@ def write_quad_gate_course():
             a0, a1 = attitude(t - h), attitude(t + h)
             att_rate = [wrap(b - a) / (2 * h) for a, b in zip(a0, a1)]
             x = state_vector(pos, vel, acc, att, att_rate)
-            log.state(quad, rounded(x))
+            log.state(quad, list(x))
             for gid, g in zip(gate_ids, gates):
-                log.state(gid, rounded(state_vector(g[2], (0, 0, 0), (0, 0, 0), (0.0, 0.0, g[3]), (0, 0, 0))))
+                log.state(gid, list(state_vector(g[2], (0, 0, 0), (0, 0, 0), (0.0, 0.0, g[3]), (0, 0, 0))))
 
             if i == 0:
                 # Appendix B: fixed camera, mounted 25 deg up -> one gimbal event with that angle
@@ -657,7 +655,7 @@ def write_formation_turn():
                 att_rate = [wrap(q1 - q0) / (2 * h) for q0, q1 in zip(attitude(f, t - h), attitude(f, t + h))]
                 x = state_vector(pos, vel, acc, att, att_rate)
                 states.append(x)
-                log.state(b, rounded(x))
+                log.state(b, list(x))
 
             # a producer-defined event: the formation shape and each wingman's slot (back, right) in metres
             new_shape = "v" if t < t_change else "echelon_right"
@@ -765,9 +763,9 @@ def write_heli_recon():
             h = 1e-3
             att_rate = [wrap(b - a) / (2 * h) for a, b in zip(attitude(t - h), attitude(t + h))]
             x = state_vector(pos, vel, acc, att, att_rate)
-            log.state(heli, rounded(x))
+            log.state(heli, list(x))
             cpos, cvel, cacc = sample(car, t)
-            log.state(veh, rounded(state_vector(cpos, cvel, cacc, (0.0, 0.0, -math.pi / 2), (0, 0, 0))))
+            log.state(veh, list(state_vector(cpos, cvel, cacc, (0.0, 0.0, -math.pi / 2), (0, 0, 0))))
 
             if i == 0:
                 # Appendix B: nose turret. mount_offset_frd_m omitted: the viewer keeps the airframe's own gimbal point
@@ -972,7 +970,7 @@ def write_vtol_transition():
             h = 1e-3
             att_rate = [wrap(b - a) / (2 * h) for a, b in zip(attitude(t - h), attitude(t + h))]
             x = state_vector(pos, vel, acc, att, att_rate)
-            log.state(uav, rounded(x))
+            log.state(uav, list(x))
 
             if i == 0:
                 # Appendix B: pan-tilt ball; vfov omitted (16:9), mount omitted (the airframe's own gimbal point)
@@ -1094,9 +1092,9 @@ def write_quad_moving_pad_landing():
             h = 1e-3
             att_rate = [wrap(b - a) / (2 * h) for a, b in zip(attitude(t - h), attitude(t + h))]
             x = state_vector(pos, vel, acc, att, att_rate)
-            log.state(quad, rounded(x))
+            log.state(quad, list(x))
             tpos, tvel, tacc = sample(truck, t)
-            log.state(veh, rounded(state_vector(tpos, tvel, tacc, (0.0, 0.0, 0.0), (0, 0, 0))))
+            log.state(veh, list(state_vector(tpos, tvel, tacc, (0.0, 0.0, 0.0), (0, 0, 0))))
 
             if i == 0:
                 # Appendix B: pan-tilt ball with its mount position given this time
@@ -1226,9 +1224,9 @@ def write_glide_bomb_release():
             h = 1e-3
             att_rate = [wrap(b - a) / (2 * h) for a, b in zip(jet_attitude(t - h), jet_attitude(t + h))]
             x = state_vector(pos, vel, acc, att, att_rate)
-            log.state(lead, rounded(x))
+            log.state(lead, list(x))
             for tid, tg in zip(tgt_ids, targets):                  # targets exist the whole episode
-                log.state(tid, rounded(state_vector(tg, (0, 0, 0), (0, 0, 0), (0.0, 0.0, 0.0), (0, 0, 0))))
+                log.state(tid, list(state_vector(tg, (0, 0, 0), (0, 0, 0), (0.0, 0.0, 0.0), (0, 0, 0))))
 
             release, hit = 0.0, 0.0
             for k, (bid, f) in enumerate(zip(bomb_ids, bombs)):
@@ -1238,7 +1236,7 @@ def write_glide_bomb_release():
                 bp, bv, ba = sample(f, t)
                 batt = bomb_attitude(f, t)
                 brate = [wrap(b - a) / (2 * h) for a, b in zip(bomb_attitude(f, t - h), bomb_attitude(f, t + h))]
-                log.state(bid, rounded(state_vector(bp, bv, ba, batt, brate)))
+                log.state(bid, list(state_vector(bp, bv, ba, batt, brate)))
                 if abs(t - t_r) < 0.5 / rate:                      # first sample: spawn
                     release = 1.0
                     log.event("spawn", {"parent_body": lead}, body_id=bid)
