@@ -381,7 +381,7 @@ def write_suca_track_vehicle():
     height, radius, airspeed = 300.0, 400.0, 30.0
     car_speed = 5.0                        # the vehicle drives east
     omega = airspeed / radius              # orbit rate around the moving vehicle (right turn, clockwise)
-    mount_frd = (0.3, 0.0, 0.15)          # gimbal ball under the belly
+    mount_frd = (1.2, 0.0, -0.02)         # gimbal ball at the nose (where the "suca" airframe carries it)
     hfov = math.radians(20.0)             # zoomed EO camera
     vfov = 2.0 * math.atan(math.tan(hfov / 2) * 9 / 16)
     pitch_lim = (math.radians(-90.0), math.radians(10.0))
