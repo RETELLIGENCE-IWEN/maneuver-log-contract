@@ -686,3 +686,48 @@ aperture_m: still the (u, v) bounding box
 ```
 
 `w` describes the frame shape only. How a pass through a non-flat opening is judged is up to the producer and is not defined here.
+
+---
+
+## Appendix C. Body `model` Names
+
+This appendix is a naming convention inside MLC v1. It does not change any record type and does not change `format`. `model` stays optional (Section 7.2); any string remains valid MLC.
+
+`model` tells a visualizer which airframe to draw. The names below are the ones the RL Cinema viewer recognizes. Using one of them gets that airframe; any other name (or no `model`) is still drawn, as a generic body.
+
+### C.1 Rules
+
+```text
+Spelling:   lowercase ASCII, digits, "_" or "-", no spaces
+Matching:   readers compare case-insensitively
+Unknown:    a name not in the list is valid; the body is shown with a generic shape
+New names:  add them to this table before producers start using them
+```
+
+### C.2 Names
+
+| `model` | Airframe | Live telemetry `vehicle_type_id` |
+|---|---|---:|
+| `coyote` | Coyote X26 | 0 |
+| `f16` | DALE F-16 | 10 |
+| `f16new` | DALE F-16 (new) | 11 |
+| `xq58a` | DALE XQ-58A | 12 |
+| `suca` | DALE SUCA | 13 |
+| `mucca` | DALE MUCCA | 14 |
+| `kf21` | DALE KF-21 | 15 |
+| `vtol` | DALE VTOL (Neptune V370) | 16 |
+| `lah` | DALE LAH | 17 |
+| `basic_quad` | generic quadcopter | - |
+| `mbqd_xp26` | XP26 quadcopter | - |
+| `gbu-39` | GBU-39 glide bomb | - |
+
+The `vehicle_type_id` column links the name to the live telemetry ID of the same airframe, so a replay and a live session show the same model.
+
+`muca` is an older spelling of `mucca`; readers should accept both, writers should use `mucca`.
+
+### C.3 Example
+
+```json
+{"$":"body","id":0,"name":"ownship","platform":"fixed_wing","model":"coyote","role":"ownship"}
+{"$":"body","id":1,"name":"quad_0","platform":"quadcopter","model":"basic_quad"}
+```
